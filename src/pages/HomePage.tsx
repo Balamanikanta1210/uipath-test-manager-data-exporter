@@ -3,6 +3,7 @@ import { Settings, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigurationSidebar } from '@/components/ConfigurationSidebar';
 import { TestCasesTable } from '@/components/TestCasesTable';
+import { GroupedTestCasesView } from '@/components/GroupedTestCasesView';
 import { TableToolbar } from '@/components/TableToolbar';
 import { testManagerApi } from '@/services/testManagerApi';
 import type { TestManagerCredentials, TestCase } from '@/services/testManagerApi';
@@ -63,11 +64,9 @@ export function HomePage() {
   }, []);
   const handleViewModeChange = useCallback((mode: 'standard' | 'grouped') => {
     setViewMode(mode);
-    if (mode === 'grouped') {
-      toast.info('Grouped view', {
-        description: 'Grouped view will be implemented in Phase 3',
-      });
-    }
+    toast.success(`Switched to ${mode} view`, {
+      description: mode === 'grouped' ? 'Test cases grouped by labels' : 'Flat list view',
+    });
   }, []);
   return (
     <AppLayout className="bg-gray-50">
@@ -164,11 +163,19 @@ export function HomePage() {
                   viewMode={viewMode}
                   onViewModeChange={handleViewModeChange}
                 />
-                <TestCasesTable
-                  testCases={testCases}
-                  selectedIds={selectedIds}
-                  onSelectionChange={handleSelectionChange}
-                />
+                {viewMode === 'standard' ? (
+                  <TestCasesTable
+                    testCases={testCases}
+                    selectedIds={selectedIds}
+                    onSelectionChange={handleSelectionChange}
+                  />
+                ) : (
+                  <GroupedTestCasesView
+                    testCases={testCases}
+                    selectedIds={selectedIds}
+                    onSelectionChange={handleSelectionChange}
+                  />
+                )}
               </div>
             </div>
           )}
