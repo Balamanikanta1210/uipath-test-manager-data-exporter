@@ -162,6 +162,8 @@ export function HomePage() {
                   totalCount={testCases.length}
                   viewMode={viewMode}
                   onViewModeChange={handleViewModeChange}
+                  testCases={testCases}
+                  selectedIds={selectedIds}
                 />
                 {viewMode === 'standard' ? (
                   <TestCasesTable

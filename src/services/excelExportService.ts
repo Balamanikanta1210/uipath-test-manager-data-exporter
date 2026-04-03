@@ -1,4 +1,4 @@
-import * as ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs';
 import type { TestCase, TestSteps } from './testManagerApi';
 export interface ExcelExportOptions {
   testCases: TestCase[];
