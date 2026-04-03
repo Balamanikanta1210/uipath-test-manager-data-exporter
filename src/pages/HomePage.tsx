@@ -114,13 +114,7 @@ export function HomePage() {
           isLoading={isAuthenticating}
           error={authError}
         />
-        <div
-          className="flex-1"
-          style={{
-            marginLeft: isSidebarOpen ? '384px' : '0',
-            transition: 'margin-left 0.2s ease-in-out',
-          }}
-        >
+        <div className={`flex-1 transition-all duration-200 ${isSidebarOpen ? 'ml-96' : 'ml-0'}`}>
           {isFetchingData ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="size-8 text-blue-600 animate-spin mb-3" />
