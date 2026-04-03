@@ -1,148 +1,156 @@
-// Home page of the app, Currently a demo page for demonstration.
-// Please rewrite this file to implement your own logic. Do not replace or delete it, simply rewrite this HomePage.tsx file.
-import { useEffect } from 'react'
-import { Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { Toaster, toast } from '@/components/ui/sonner'
-import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
-import { AppLayout } from '@/components/layout/AppLayout'
-
-// Timer store: independent slice with a clear, minimal API, for demonstration
-type TimerState = {
-  isRunning: boolean;
-  elapsedMs: number;
-  start: () => void;
-  pause: () => void;
-  reset: () => void;
-  tick: (deltaMs: number) => void;
-}
-
-const useTimerStore = create<TimerState>((set) => ({
-  isRunning: false,
-  elapsedMs: 0,
-  start: () => set({ isRunning: true }),
-  pause: () => set({ isRunning: false }),
-  reset: () => set({ elapsedMs: 0, isRunning: false }),
-  tick: (deltaMs) => set((s) => ({ elapsedMs: s.elapsedMs + deltaMs })),
-}))
-
-// Counter store: separate slice to showcase multiple stores without coupling
-type CounterState = {
-  count: number;
-  inc: () => void;
-  reset: () => void;
-}
-
-const useCounterStore = create<CounterState>((set) => ({
-  count: 0,
-  inc: () => set((s) => ({ count: s.count + 1 })),
-  reset: () => set({ count: 0 }),
-}))
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React, { useState, useCallback } from 'react';
+import { Settings, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ConfigurationSidebar } from '@/components/ConfigurationSidebar';
+import { testManagerApi } from '@/services/testManagerApi';
+import type { TestManagerCredentials, TestCase } from '@/services/testManagerApi';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { toast } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui/sonner';
 export function HomePage() {
-  // Select only what is needed to avoid unnecessary re-renders
-  const { isRunning, elapsedMs } = useTimerStore(
-    useShallow((s) => ({ isRunning: s.isRunning, elapsedMs: s.elapsedMs })),
-  )
-  const start = useTimerStore((s) => s.start)
-  const pause = useTimerStore((s) => s.pause)
-  const resetTimer = useTimerStore((s) => s.reset)
-  const count = useCounterStore((s) => s.count)
-  const inc = useCounterStore((s) => s.inc)
-  const resetCount = useCounterStore((s) => s.reset)
-
-  // Drive the timer only while running; avoid update-depth issues with a scoped RAF
-  useEffect(() => {
-    if (!isRunning) return
-    let raf = 0
-    let last = performance.now()
-    const loop = () => {
-      const now = performance.now()
-      const delta = now - last
-      last = now
-      // Read store API directly to keep effect deps minimal and stable
-      useTimerStore.getState().tick(delta)
-      raf = requestAnimationFrame(loop)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+  const handleAuthenticate = useCallback(async (credentials: TestManagerCredentials) => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    try {
+      await testManagerApi.authenticate(credentials);
+      setIsAuthenticated(true);
+      toast.success('Authentication successful', {
+        description: 'Fetching test cases...',
+      });
+      setIsFetchingData(true);
+      const data = await testManagerApi.fetchTestCases();
+      setTestCases(data);
+      setIsFetchingData(false);
+      setIsSidebarOpen(false);
+      toast.success('Test cases loaded', {
+        description: `Retrieved ${data.length} test case${data.length !== 1 ? 's' : ''}`,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      setAuthError(errorMessage);
+      setIsAuthenticated(false);
+      setIsFetchingData(false);
+      toast.error('Authentication failed', {
+        description: errorMessage,
+      });
+    } finally {
+      setIsAuthenticating(false);
     }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [isRunning])
-
-  const onPleaseWait = () => {
-    inc()
-    if (!isRunning) {
-      start()
-      toast.success('Building your app…', {
-        description: 'Hang tight, we\'re setting everything up.',
-      })
-    } else {
-      pause()
-      toast.info('Taking a short pause', {
-        description: 'We\'ll continue shortly.',
-      })
-    }
-  }
-
-  const formatted = formatDuration(elapsedMs)
-
+  }, []);
+  const handleDisconnect = useCallback(() => {
+    testManagerApi.clearAuth();
+    setIsAuthenticated(false);
+    setTestCases([]);
+    setAuthError(null);
+    setIsSidebarOpen(true);
+    toast.info('Disconnected', {
+      description: 'Authentication cleared',
+    });
+  }, []);
   return (
-    <AppLayout>
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-        <ThemeToggle />
-        <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-        <div className="text-center space-y-8 relative z-10 animate-fade-in">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-              <Sparkles className="w-8 h-8 text-white rotating" />
-            </div>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button 
-              size="lg"
-              onClick={onPleaseWait}
-              className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-              aria-live="polite"
+    <AppLayout className="bg-gray-50">
+      <div className="min-h-screen flex flex-col">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="text-gray-600 hover:text-gray-900"
             >
-              Please Wait
+              <Settings className="size-5" />
             </Button>
+            <h1 className="text-lg font-semibold text-gray-900">UiPath Test Manager Exporter</h1>
           </div>
-          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div>
-              Time elapsed: <span className="font-medium tabular-nums text-foreground">{formatted}</span>
-            </div>
-            <div>
-              Coins: <span className="font-medium tabular-nums text-foreground">{count}</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => { resetTimer(); resetCount(); toast('Reset complete') }}>
-              Reset
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { inc(); toast('Coin added') }}>
-              Add Coin
-            </Button>
+          <div className="flex items-center gap-3">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                  <CheckCircle2 className="size-4" />
+                  <span>Connected</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  className="text-sm"
+                >
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded text-sm text-gray-600">
+                <XCircle className="size-4" />
+                <span>Not Connected</span>
+              </div>
+            )}
           </div>
         </div>
-        <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-          <p>Powered by Cloudflare</p>
-        </footer>
-        <Toaster richColors closeButton />
+        <ConfigurationSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          onAuthenticate={handleAuthenticate}
+          isLoading={isAuthenticating}
+          error={authError}
+        />
+        <div
+          className="flex-1 p-6"
+          style={{
+            marginLeft: isSidebarOpen ? '384px' : '0',
+            transition: 'margin-left 0.2s ease-in-out',
+          }}
+        >
+          {isFetchingData ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="size-8 text-blue-600 animate-spin mb-3" />
+              <p className="text-sm text-gray-600">Loading test cases...</p>
+            </div>
+          ) : !isAuthenticated ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="p-4 bg-gray-100 rounded-lg mb-4">
+                <Settings className="size-8 text-gray-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Configure API Connection</h2>
+              <p className="text-sm text-gray-600 mb-4 text-center max-w-md">
+                Open the configuration panel to enter your UiPath Test Manager API credentials
+              </p>
+              <Button
+                onClick={() => setIsSidebarOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Open Configuration
+              </Button>
+            </div>
+          ) : testCases.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="p-4 bg-gray-100 rounded-lg mb-4">
+                <XCircle className="size-8 text-gray-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">No Test Cases Found</h2>
+              <p className="text-sm text-gray-600">No test cases were retrieved from the API</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Test Cases</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {testCases.length} test case{testCases.length !== 1 ? 's' : ''} loaded
+                </p>
+              </div>
+              <div className="text-sm text-gray-500">
+                Table view will be implemented in Phase 2
+              </div>
+            </div>
+          )}
+        </div>
+        <Toaster richColors closeButton position="top-right" />
       </div>
     </AppLayout>
-  )
+  );
 }
