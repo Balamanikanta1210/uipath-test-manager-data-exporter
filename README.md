@@ -2,7 +2,7 @@
 
 Enterprise-grade UiPath Test Manager data exporter with API authentication, advanced table operations, and hierarchical Excel export.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Balamanikanta1210/uipath-test-manager-data-exporter)
 
 ## Overview
 
@@ -146,7 +146,7 @@ src/
 
 ### Deploy to Cloudflare Pages
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Balamanikanta1210/uipath-test-manager-data-exporter)
 
 #### Manual Deployment
 
