@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { Settings, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigurationSidebar } from '@/components/ConfigurationSidebar';
+import { TestCasesTable } from '@/components/TestCasesTable';
+import { TableToolbar } from '@/components/TableToolbar';
 import { testManagerApi } from '@/services/testManagerApi';
 import type { TestManagerCredentials, TestCase } from '@/services/testManagerApi';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -14,6 +16,8 @@ export function HomePage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [isFetchingData, setIsFetchingData] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [viewMode, setViewMode] = useState<'standard' | 'grouped'>('standard');
   const handleAuthenticate = useCallback(async (credentials: TestManagerCredentials) => {
     setIsAuthenticating(true);
     setAuthError(null);
@@ -47,11 +51,23 @@ export function HomePage() {
     testManagerApi.clearAuth();
     setIsAuthenticated(false);
     setTestCases([]);
+    setSelectedIds(new Set());
     setAuthError(null);
     setIsSidebarOpen(true);
     toast.info('Disconnected', {
       description: 'Authentication cleared',
     });
+  }, []);
+  const handleSelectionChange = useCallback((ids: Set<number>) => {
+    setSelectedIds(ids);
+  }, []);
+  const handleViewModeChange = useCallback((mode: 'standard' | 'grouped') => {
+    setViewMode(mode);
+    if (mode === 'grouped') {
+      toast.info('Grouped view', {
+        description: 'Grouped view will be implemented in Phase 3',
+      });
+    }
   }, []);
   return (
     <AppLayout className="bg-gray-50">
@@ -100,7 +116,7 @@ export function HomePage() {
           error={authError}
         />
         <div
-          className="flex-1 p-6"
+          className="flex-1"
           style={{
             marginLeft: isSidebarOpen ? '384px' : '0',
             transition: 'margin-left 0.2s ease-in-out',
@@ -112,39 +128,47 @@ export function HomePage() {
               <p className="text-sm text-gray-600">Loading test cases...</p>
             </div>
           ) : !isAuthenticated ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="p-4 bg-gray-100 rounded-lg mb-4">
-                <Settings className="size-8 text-gray-400" />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="p-4 bg-gray-100 rounded-lg mb-4">
+                  <Settings className="size-8 text-gray-400" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Configure API Connection</h2>
+                <p className="text-sm text-gray-600 mb-4 text-center max-w-md">
+                  Open the configuration panel to enter your UiPath Test Manager API credentials
+                </p>
+                <Button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Open Configuration
+                </Button>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Configure API Connection</h2>
-              <p className="text-sm text-gray-600 mb-4 text-center max-w-md">
-                Open the configuration panel to enter your UiPath Test Manager API credentials
-              </p>
-              <Button
-                onClick={() => setIsSidebarOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Open Configuration
-              </Button>
             </div>
           ) : testCases.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="p-4 bg-gray-100 rounded-lg mb-4">
-                <XCircle className="size-8 text-gray-400" />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="p-4 bg-gray-100 rounded-lg mb-4">
+                  <XCircle className="size-8 text-gray-400" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">No Test Cases Found</h2>
+                <p className="text-sm text-gray-600">No test cases were retrieved from the API</p>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">No Test Cases Found</h2>
-              <p className="text-sm text-gray-600">No test cases were retrieved from the API</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Test Cases</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {testCases.length} test case{testCases.length !== 1 ? 's' : ''} loaded
-                </p>
-              </div>
-              <div className="text-sm text-gray-500">
-                Table view will be implemented in Phase 2
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <TableToolbar
+                  selectedCount={selectedIds.size}
+                  totalCount={testCases.length}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                />
+                <TestCasesTable
+                  testCases={testCases}
+                  selectedIds={selectedIds}
+                  onSelectionChange={handleSelectionChange}
+                />
               </div>
             </div>
           )}
